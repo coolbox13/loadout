@@ -1,0 +1,6 @@
+# Scanner test fixtures are synthetic secrets by design.
+[extend]
+useDefault = true
+
+[allowlist]
+paths = ['''_test\.go$''']
