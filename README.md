@@ -1,5 +1,9 @@
 # loadout
 
+[![ci](https://github.com/coolbox13/loadout/actions/workflows/ci.yml/badge.svg)](https://github.com/coolbox13/loadout/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/coolbox13/loadout)](https://github.com/coolbox13/loadout/releases/latest)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **What Claude Code loads before you type, across every project on your machine.**
 
 Instruction files grow by accretion: framework installers drop thousands of
@@ -7,35 +11,49 @@ words into `~/.claude`, CLAUDE.md files turn into changelogs, imports rot, and
 uninstalled tools keep issuing orders through leftover hooks. loadout makes
 that visible and safe to clean up.
 
-Status: MVP. Read-only audit plus snapshot backups. No LLM, no network.
+Read-only audit plus snapshot backups. No LLM calls, no network access, no telemetry.
 
 ```
 $ loadout audit
-loadout audit · 38 projects (2 archived) · 0 errors, 14 warnings, 0 info
+loadout audit · 38 projects (2 archived) · 0 errors, 6 warnings, 0 info
 
-Every session starts with ≈4,335 tokens from ~/.claude:
-  agent-description    ≈  1,049  (22 files)
-  rule                 ≈  1,128  (8 files)
-  skill-description    ≈  1,986  (38 files)
-  …
+Every session starts with ≈2,950 tokens from ~/.claude:
+  agent-description    ≈    470  (7 files)
+  claude-md            ≈    110  (1 files)
+  import               ≈    180  (1 files)
+  rule                 ≈  2,000  (8 files)
+  skill-description    ≈    190  (3 files)
 
 PROJECT                        ALWAYS  ON-PATH  LAZY    ERR  WARN  INFO
-~/code/shop-backend            ≈8,342  ≈4,361   ≈0      ·    1     ·
-~/code/field-app               ≈8,051  ≈4,361   ≈0      ·    5     ·
+~/code/shop-backend            ≈5,210  ≈6,900   ≈0      ·    1     ·
+~/code/field-app               ≈4,980  ≈6,900   ≈1,240  ·    2     ·
 …
 ```
 
 ## Install
 
-Download a binary for macOS or Linux (amd64/arm64) from
-[Releases](https://github.com/coolbox13/loadout/releases), or build from source:
+**Binary** for macOS or Linux, amd64 or arm64, from
+[Releases](https://github.com/coolbox13/loadout/releases/latest):
+
+```bash
+VERSION=1.0.0
+OS=$(uname -s | tr A-Z a-z)                                  # darwin | linux
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+BASE=https://github.com/coolbox13/loadout/releases/download/v$VERSION
+FILE=loadout_${VERSION}_${OS}_${ARCH}.tar.gz
+curl -fsSLO "$BASE/$FILE"
+curl -fsSL "$BASE/checksums.txt" | awk -v f="$FILE" '$2 == f' | shasum -a 256 -c -
+tar -xzf "$FILE" loadout && sudo mv loadout /usr/local/bin/
+```
+
+macOS release binaries are not notarized. Installed this way, with `curl`, they are not quarantined.
+If you downloaded one through a browser, run `xattr -d com.apple.quarantine loadout`.
+
+**From source** (Go 1.27+):
 
 ```bash
 go install github.com/coolbox13/loadout/cmd/loadout@latest
 ```
-
-macOS release binaries are not notarized. Run `xattr -d com.apple.quarantine ./loadout`
-after extracting them, or use `go install`.
 
 ## Commands
 
