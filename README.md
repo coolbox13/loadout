@@ -36,7 +36,7 @@ PROJECT                        ALWAYS  ON-PATH  LAZY    ERR  WARN  INFO
 [Releases](https://github.com/coolbox13/loadout/releases/latest):
 
 ```bash
-VERSION=1.0.0
+VERSION=1.0.1
 OS=$(uname -s | tr A-Z a-z)                                  # darwin | linux
 ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 BASE=https://github.com/coolbox13/loadout/releases/download/v$VERSION

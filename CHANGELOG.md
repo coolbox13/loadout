@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-11-21
+
+### Fixed
+
+- `loadout version` printed `dev` when installed with `go install …@vX.Y.Z`.
+  It now reads the module version recorded in the binary. Release binaries
+  were not affected.
+
 ## [1.0.0] - 2026-11-21
 
 First stable release.
@@ -46,4 +54,5 @@ First stable release.
 
 - Static binaries for macOS and Linux on amd64 and arm64, with SHA-256 checksums.
 
+[1.0.1]: https://github.com/coolbox13/loadout/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/coolbox13/loadout/releases/tag/v1.0.0

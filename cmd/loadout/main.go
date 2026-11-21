@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
+	"strings"
 
 	"github.com/coolbox13/loadout/internal/audit"
 	"github.com/coolbox13/loadout/internal/config"
@@ -19,8 +21,29 @@ import (
 	"github.com/coolbox13/loadout/internal/snapshot"
 )
 
-// version is set at release time via -ldflags "-X main.version=…".
+// version is set at release time via -ldflags "-X main.version=…". Builds
+// from `go install …@vX.Y.Z` have no ldflags; currentVersion then falls back
+// to the module version Go records in the binary.
 var version = "dev"
+
+func currentVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok {
+		return versionFromModule(info.Main.Version)
+	}
+	return version
+}
+
+// versionFromModule turns a module version ("v1.0.1", "(devel)") into the
+// form loadout prints.
+func versionFromModule(v string) string {
+	if v == "" || v == "(devel)" {
+		return "dev"
+	}
+	return strings.TrimPrefix(v, "v")
+}
 
 const usage = `loadout — what Claude Code loads before you type
 
@@ -72,7 +95,7 @@ func run(args []string, out io.Writer) error {
 	case "snapshot":
 		return runSnapshot(args[1:], out, home)
 	case "version":
-		_, _ = fmt.Fprintln(out, "loadout", version)
+		_, _ = fmt.Fprintln(out, "loadout", currentVersion())
 		return nil
 	case "help", "-h", "--help":
 		_, err := fmt.Fprint(out, usage)

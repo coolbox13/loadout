@@ -69,3 +69,12 @@ func TestRunAuditAndGraphOnADirectory(t *testing.T) {
 		t.Fatalf("graph: %v %q", err, out.String())
 	}
 }
+
+func TestVersionFromModule(t *testing.T) {
+	cases := map[string]string{"v1.0.1": "1.0.1", "(devel)": "dev", "": "dev", "v2.3.4-rc.1": "2.3.4-rc.1"}
+	for in, want := range cases {
+		if got := versionFromModule(in); got != want {
+			t.Errorf("versionFromModule(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
