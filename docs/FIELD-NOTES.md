@@ -115,3 +115,36 @@ what building the MVP taught. Each note ends with what a tool should do about it
     ≈2k of ≈4.3k global tokens. → Rank sources by cost, not only projects.
 23. **Unchecked writes matter in a CLI that pipes into other tools.** → Use an
     error-capturing writer, checked once.
+
+## Checking against ground truth
+
+24. **`claude -p "/context"` gives exact per-file token counts, headless.**
+    Comparing against it overturned three of loadout's assumptions at once:
+    - **Characters per token:** about 2.4 with Claude 5's tokenizer, not 4.
+    - **Disabled skills:** most of the user's own skills were already
+      switched off via `skillOverrides`, so the tool's "skills are the biggest
+      cost" claim was wrong for those.
+    - **Where the skill cost really sits:** in skills the tool never saw.
+      These were synced from claude.ai (≈3.4k tokens, mostly document-format
+      skills the user never invoked) and built-in skills (≈1.9k).
+
+    → Calibrate against `/context`, and never present modelled numbers without
+    saying what the model leaves out.
+25. **Usage data beats guessing when pruning.** One month of transcripts and
+    over a year of prompt history showed that 4 of 22 custom agents were used,
+    and none of ~20 heavy skills. Switching those off cut skills from 6.2k to
+    2.0k tokens and agents from 1.6k to 0.5k per session.
+26. **`skillOverrides` works for built-in and synced skills, but not for plugin skills.**
+    Verified with `--settings` and a temporary file before touching real
+    settings.
+27. **The auto-memory index can quietly grow.** One project's `MEMORY.md`, meant
+    to hold one-line pointers, had reached ≈2.2k tokens of inline facts.
+    → Count it, and keep the index to pointers.
+28. **MCP config canaries.**
+    - `${VAR}` expansion works in user-scope MCP servers in
+      `~/.claude.json`, and servers also inherit the shell environment.
+    - An `mcpServers` block in `settings.json` is never read. One such dead
+      duplicate held four live secrets.
+    - Proven with throwaway servers that write their environment to a file.
+    → Move secrets to an env file, reference them as `${VAR}`, and delete
+    dead config.

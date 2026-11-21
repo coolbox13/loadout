@@ -170,6 +170,9 @@ func globalFindings(opts Options, loaded map[string]bool) []model.Finding {
 			out = append(out, settingsSecrets(path, data)...)
 		}
 	}
+	if opts.Config.Enabled("D5") {
+		out = append(out, claudeJSONSecrets(filepath.Join(opts.Env.Home, ".claude.json"))...)
+	}
 	if opts.Config.Enabled("D6") {
 		out = append(out, checks.DeadWeight(opts.Env.ClaudeDir)...)
 		out = append(out, unreferencedTopLevel(opts.Env.ClaudeDir, loaded)...)
@@ -191,6 +194,44 @@ func settingsSecrets(path string, data []byte) []model.Finding {
 		out = append(out, model.Finding{Check: "D5", Severity: model.Warn, Path: path,
 			Message: fmt.Sprintf("literal secret at %s; settings files get copied and backed up, prefer the OS keychain or a gitignored env file", h.Masked)})
 	}
+	return out
+}
+
+// claudeJSONSecrets scans only the MCP server definitions in ~/.claude.json
+// (user scope and per-project); the rest of that file is Claude Code state.
+func claudeJSONSecrets(path string) []model.Finding {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var cfg struct {
+		MCPServers any `json:"mcpServers"`
+		Projects   map[string]struct {
+			MCPServers any `json:"mcpServers"`
+		} `json:"projects"`
+	}
+	if json.Unmarshal(data, &cfg) != nil {
+		return nil
+	}
+	subset := map[string]any{}
+	if cfg.MCPServers != nil {
+		subset["mcpServers"] = cfg.MCPServers
+	}
+	projects := map[string]any{}
+	for dir, p := range cfg.Projects {
+		if p.MCPServers != nil {
+			projects[dir] = map[string]any{"mcpServers": p.MCPServers}
+		}
+	}
+	if len(projects) > 0 {
+		subset["projects"] = projects
+	}
+	var out []model.Finding
+	for _, h := range secrets.ScanJSON(subset) {
+		out = append(out, model.Finding{Check: "D5", Severity: model.Warn, Path: path,
+			Message: fmt.Sprintf("literal secret at %s; reference an environment variable instead (\"${VAR}\" is expanded in MCP config)", h.Masked)})
+	}
+	sortFindings(out)
 	return out
 }
 

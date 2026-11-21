@@ -261,8 +261,10 @@ caught 8 of the 10 problem types found here.
 ## 13. Open questions
 
 - How stable is the load model across Claude Code releases? Canaries mitigate
-  this, but could upstream expose it (`claude context --json`)? That would
-  make D1 exact instead of modelled.
+  this. `claude -p "/context"` already gives exact per-source counts headless,
+  so the next step is `loadout audit --exact`: it would run that per project and
+  use the result both as ground truth and to calibrate the model (it costs one
+  cheap model call per project).
 - Token counting: local tokenizer approximation vs. calling the count-tokens API?
 - Should harvesting from abandoned frameworks be generic, or should it ship
   adapters per known framework?

@@ -1,0 +1,37 @@
+# Release config: `git tag vX.Y.Z && git push --tags` triggers .github/workflows/release.yml.
+# Local dry run: goreleaser release --snapshot --clean
+version: 2
+
+project_name: loadout
+
+builds:
+  - id: loadout
+    main: ./cmd/loadout
+    binary: loadout
+    env:
+      - CGO_ENABLED=0 # pure Go: static binaries, trivial cross-compiles
+    goos: [darwin, linux] # Windows: untested (path encoding of ~/.claude/projects) — add once verified
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [LICENSE, README.md]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^docs:", "^test:", "^chore:"]
+
+release:
+  footer: |
+    Install with Go: `go install github.com/coolbox13/loadout/cmd/loadout@{{ .Tag }}`
+
+    macOS: binaries are not notarized. After extracting, run
+    `xattr -d com.apple.quarantine ./loadout` (or install with `go install`).

@@ -2,7 +2,10 @@ package secrets
 
 import (
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/coolbox13/loadout/internal/model"
 )
 
 func rules(hits []Hit) []string {
@@ -142,5 +145,12 @@ func TestScanIgnoresTypeAnnotationsAndVariables(t *testing.T) {
 func TestScanStillFindsRealValueWithClosingBrace(t *testing.T) {
 	if hits := Scan(`cfg = {"token": "Qm9x7LpZ2vRt8wNc"}` + "\n"); len(hits) != 1 {
 		t.Fatalf("expected one hit, got %+v", hits)
+	}
+}
+
+func TestEstimateTokensUsesClaudeFiveRatio(t *testing.T) {
+	// Measured against Claude Code's /context: ≈2.4 characters per token.
+	if got := model.EstimateTokens(strings.Repeat("a", 250)); got != 100 {
+		t.Fatalf("EstimateTokens(250 chars) = %d, want 100", got)
 	}
 }

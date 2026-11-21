@@ -193,3 +193,45 @@ func TestTotalSumsByWhen(t *testing.T) {
 		t.Fatalf("totals wrong: %d %d %d", g.Total(model.Always), g.Total(model.Lazy), g.Total(model.OnPath))
 	}
 }
+
+func TestBuildSkipsSkillsSwitchedOffInSettings(t *testing.T) {
+	f := newFixture(t)
+	f.write(".claude/settings.json", `{"skillOverrides":{"unused":"off","kept":"on"}}`)
+	f.write(".claude/skills/unused/SKILL.md", "---\nname: unused\ndescription: never used\n---\n")
+	f.write(".claude/skills/kept/SKILL.md", "---\nname: kept\ndescription: used\n---\n")
+	f.write("p/.claude/settings.json", `{"skillOverrides":{"projoff":"off"}}`)
+	f.write("p/.claude/skills/projoff/SKILL.md", "---\nname: projoff\ndescription: x\n---\n")
+	f.write("p/CLAUDE.md", "p\n")
+
+	g := Build(f.env(), filepath.Join(f.home, "p"))
+
+	if _, ok := find(g, "skills/kept/SKILL.md"); !ok {
+		t.Error("enabled skill missing")
+	}
+	for _, off := range []string{"skills/unused/SKILL.md", "skills/projoff/SKILL.md"} {
+		if _, ok := find(g, off); ok {
+			t.Errorf("%s is switched off and must not count", off)
+		}
+	}
+}
+
+func TestBuildIncludesAutoMemoryIndex(t *testing.T) {
+	f := newFixture(t)
+	f.write("Documents/my_app/CLAUDE.md", "p\n")
+	f.write(".claude/projects/-"+strings.ReplaceAll(strings.TrimPrefix(f.home, "/"), "/", "-")+"-Documents-my-app/memory/MEMORY.md", "- [a](a.md) — hook\n")
+
+	g := Build(f.env(), filepath.Join(f.home, "Documents/my_app"))
+
+	s, ok := find(g, "memory/MEMORY.md")
+	if !ok || s.Kind != model.KindAutoMemory || s.When != model.Always {
+		t.Fatalf("auto memory = %+v (found %v)", s, ok)
+	}
+}
+
+func TestEncodeProjectDirMatchesClaudeCode(t *testing.T) {
+	got := encodeProjectDir("/Users/me/Documents/my_app/Some Dir")
+
+	if got != "-Users-me-Documents-my-app-Some-Dir" {
+		t.Fatalf("got %q", got)
+	}
+}

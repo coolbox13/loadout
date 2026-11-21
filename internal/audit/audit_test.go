@@ -105,3 +105,22 @@ func TestRunReportsSettingsSecretsWithoutValues(t *testing.T) {
 		t.Fatalf("no settings secret finding: %+v", r.Global.Findings)
 	}
 }
+
+func TestRunScansClaudeJSONMCPServersForSecrets(t *testing.T) {
+	home := t.TempDir()
+	write(t, filepath.Join(home, ".claude.json"), `{"mcpServers":{"stripe":{"env":{"STRIPE_SECRET_KEY":"sk_live_Q9mZ2rVq7mR2tL9p"}},"ok":{"env":{"TOKEN":"${TOKEN}"}}},"projects":{"/x":{"mcpServers":{"db":{"args":["postgresql://u:Pw9secretX@h/db"]}}}},"oauthAccount":{"emailAddress":"me@example.com"}}`)
+	write(t, filepath.Join(home, "Documents/a/CLAUDE.md"), "a\n")
+
+	r := run(t, home)
+
+	var paths []string
+	for _, f := range r.Global.Findings {
+		if f.Check == "D5" && strings.HasSuffix(f.Path, ".claude.json") {
+			paths = append(paths, f.Message)
+		}
+	}
+	joined := strings.Join(paths, "|")
+	if len(paths) != 2 || !strings.Contains(joined, "mcpServers.stripe.env.STRIPE_SECRET_KEY") || !strings.Contains(joined, "projects./x.mcpServers.db.args[]") {
+		t.Fatalf("findings = %v", paths)
+	}
+}

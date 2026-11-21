@@ -1,7 +1,10 @@
 // Package model holds the types shared by every loadout package.
 package model
 
-import "strconv"
+import (
+	"strconv"
+	"unicode/utf8"
+)
 
 // When describes the moment a source enters Claude's context.
 type When string
@@ -16,11 +19,12 @@ const (
 type Kind string
 
 const (
-	KindClaudeMD Kind = "claude-md"
-	KindImport   Kind = "import"
-	KindRule     Kind = "rule"
-	KindAgent    Kind = "agent-description"
-	KindSkill    Kind = "skill-description"
+	KindClaudeMD   Kind = "claude-md"
+	KindImport     Kind = "import"
+	KindRule       Kind = "rule"
+	KindAgent      Kind = "agent-description"
+	KindSkill      Kind = "skill-description"
+	KindAutoMemory Kind = "auto-memory"
 )
 
 // Source is one instruction file (or description) in a load graph.
@@ -70,11 +74,12 @@ func (f Finding) Key() string {
 	return f.Check + "\x00" + f.Path + "\x00" + strconv.Itoa(f.Line) + "\x00" + f.Message
 }
 
-// charsPerToken is the usual rough ratio for English and code; loadout
-// reports estimates with a ≈ prefix and never claims exact counts.
-const charsPerToken = 4
-
-// EstimateTokens returns a rough token count for text.
+// EstimateTokens returns a rough token count for text: ⌈chars / 2.5⌉.
+// Calibrated against Claude Code's own /context counts for Claude 5 models,
+// which measured 2.0–3.0 characters per token (mean 2.4) on real instruction
+// files. The older rule of thumb of 4 under-counted by about 40%. loadout
+// prints estimates with a ≈ prefix; use /context for exact numbers.
 func EstimateTokens(text string) int {
-	return (len(text) + charsPerToken - 1) / charsPerToken
+	n := utf8.RuneCountInString(text)
+	return (2*n + 4) / 5
 }

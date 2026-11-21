@@ -4,12 +4,14 @@
 package loadgraph
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/coolbox13/loadout/internal/mdparse"
 	"github.com/coolbox13/loadout/internal/model"
@@ -65,9 +67,11 @@ func Build(env Env, project string) Graph {
 	}
 	b.addFile(filepath.Join(project, ".claude", "CLAUDE.md"), model.KindClaudeMD, model.Always, "", 0)
 	b.addRules(filepath.Join(project, ".claude", "rules"))
+	b.addAutoMemory(project)
+	off := skillsOff(env.ClaudeDir, filepath.Join(project, ".claude"))
 	for _, base := range []string{env.ClaudeDir, filepath.Join(project, ".claude")} {
 		b.addDescriptions(filepath.Join(base, "agents"), model.KindAgent)
-		b.addSkills(filepath.Join(base, "skills"))
+		b.addSkills(filepath.Join(base, "skills"), off)
 	}
 	b.addLazy(project)
 	return b.graph
@@ -168,17 +172,77 @@ func (b *builder) addDescriptions(dir string, kind model.Kind) {
 	}
 }
 
-func (b *builder) addSkills(dir string) {
+func (b *builder) addSkills(dir string, off map[string]bool) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
 	}
 	for _, e := range entries {
 		skill := filepath.Join(dir, e.Name(), "SKILL.md")
-		if _, err := os.Stat(skill); err == nil {
-			b.addDescription(skill, model.KindSkill)
+		data, err := os.ReadFile(skill)
+		if err != nil {
+			continue
+		}
+		front, _ := mdparse.Frontmatter(string(data))
+		if off[e.Name()] || off[front.Name] {
+			continue // switched off via skillOverrides: no description in context
+		}
+		b.addDescription(skill, model.KindSkill)
+	}
+}
+
+// skillsOff merges skillOverrides "off" entries from user and project settings.
+func skillsOff(dirs ...string) map[string]bool {
+	off := map[string]bool{}
+	for _, dir := range dirs {
+		for _, name := range []string{"settings.json", "settings.local.json"} {
+			data, err := os.ReadFile(filepath.Join(dir, name))
+			if err != nil {
+				continue
+			}
+			var s struct {
+				SkillOverrides map[string]string `json:"skillOverrides"`
+			}
+			if json.Unmarshal(data, &s) != nil {
+				continue
+			}
+			for skill, state := range s.SkillOverrides {
+				off[skill] = state == "off"
+			}
 		}
 	}
+	return off
+}
+
+// autoMemoryLines is how much of MEMORY.md Claude Code loads at start.
+const autoMemoryLines = 200
+
+// addAutoMemory adds the project's auto-memory index, which Claude Code
+// loads every session from ~/.claude/projects/<encoded dir>/memory/.
+func (b *builder) addAutoMemory(project string) {
+	path := filepath.Join(b.env.ClaudeDir, "projects", encodeProjectDir(project), "memory", "MEMORY.md")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	lines := strings.SplitAfter(string(data), "\n")
+	if len(lines) > autoMemoryLines {
+		lines = lines[:autoMemoryLines]
+	}
+	b.graph.Sources = append(b.graph.Sources, model.Source{
+		Path: path, Kind: model.KindAutoMemory, When: model.Always, Tokens: model.EstimateTokens(strings.Join(lines, "")),
+	})
+}
+
+// encodeProjectDir mirrors Claude Code's per-project directory naming:
+// every character that is not a letter or digit becomes "-".
+func encodeProjectDir(dir string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 128 && (unicode.IsLetter(r) || unicode.IsDigit(r)) {
+			return r
+		}
+		return '-'
+	}, filepath.Clean(dir))
 }
 
 func (b *builder) addDescription(path string, kind model.Kind) {

@@ -19,7 +19,8 @@ import (
 	"github.com/coolbox13/loadout/internal/snapshot"
 )
 
-var version = "0.1.0-dev"
+// version is set at release time via -ldflags "-X main.version=…".
+var version = "dev"
 
 const usage = `loadout — what Claude Code loads before you type
 

@@ -27,9 +27,15 @@ PROJECT                        ALWAYS  ON-PATH  LAZY    ERR  WARN  INFO
 
 ## Install
 
+Download a binary for macOS or Linux (amd64/arm64) from
+[Releases](https://github.com/coolbox13/loadout/releases), or build from source:
+
 ```bash
 go install github.com/coolbox13/loadout/cmd/loadout@latest
 ```
+
+macOS release binaries are not notarized. Run `xattr -d com.apple.quarantine ./loadout`
+after extracting them, or use `go install`.
 
 ## Commands
 
@@ -51,7 +57,17 @@ loadout models when each source enters context:
 | **on-path** | rules with `paths:` frontmatter, loaded when Claude reads or edits a matching file |
 | **lazy** | CLAUDE.md in subdirectories, loaded when Claude works there |
 
-Token counts are estimates (≈4 characters per token).
+It also honours `skillOverrides` ("off" skills cost nothing) and counts the per-project
+auto-memory index (`~/.claude/projects/<dir>/memory/MEMORY.md`).
+
+Token counts are estimates at ≈2.5 characters per token. That figure is calibrated against Claude Code's
+own `/context` on real files, which measured 2.0–3.0 characters per token. In tests, estimates landed
+within about 5% of `/context` for the sources loadout models.
+
+**Not modelled:** built-in skills, skills synced from claude.ai, plugin skills, MCP server
+instructions, and the system prompt. For the complete, exact picture, run
+`claude -p "/context"` in the project directory. Built-in and synced skills can be switched off with
+`skillOverrides` in `~/.claude/settings.json`; plugin skills cannot.
 
 ## Checks
 
@@ -61,7 +77,7 @@ Token counts are estimates (≈4 characters per token).
 | D2 | CLAUDE.md over the line budget (default 200, per Claude Code docs) | warn |
 | D3 | Dangling `@import`; undocumented `@\~` syntax; beyond 4 hops; `globs:` instead of `paths:` (loads always) | error / warn |
 | D4 | Hook runs a missing script or a binary not on PATH; known framework wired in but uninstalled | error / warn |
-| D5 | Secrets: URL passwords, token prefixes, `password: value` prose, literal secrets in settings JSON | error / warn |
+| D5 | Secrets: URL passwords, token prefixes, `password: value` prose, literal secrets in settings JSON and in MCP server definitions in `~/.claude.json` | error / warn |
 | D6 | Markdown in `~/.claude` that nothing loads | info |
 | D7 | All-caps shouting in instructions; forceful agent/skill descriptions ("MUST BE USED", "PROACTIVELY") | info / warn |
 
